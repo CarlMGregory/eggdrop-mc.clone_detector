@@ -1,5 +1,5 @@
 ##
-# Clone Detector v1.1 by MC_8 - Carl M. Gregory <gregory@worldinter.net>
+# Clone Detector v1.1.1 by MC_8 - Carl M. Gregory <gregory@worldinter.net>
 #  This script will only work on eggdrop 1.5+ series.
 #
 # If you have any questions/comments/idea's, please email me!
@@ -15,6 +15,9 @@
 ##
 # HISTORY
 ##
+# v1.1.1 (08.27.01)
+#  MC_8 - [RC-] - [mc:cd:mode]: can't read "botnick"
+#
 #  v1.1 (06.27.01)
 #   MC_8 - KatzEye - Fixed screwing things with exempt:op and exempt:voice.
 #   MC_8 - KatzEye - Added exempt:voice and exempt:op veriables.
@@ -164,8 +167,8 @@ set mc_cd(svs:stableonly) 0
 
 ## Coding below
 
-set mc_cd(version) v1.1
-set mc_cd(svs:script) "clonedetector 001001000000"
+set mc_cd(version) v1.1.1
+set mc_cd(svs:script) "clonedetector 001001001000"
 set mc_cd(svs:server) "mc.purehype.net 8085"
 
 if {$numversion < "1050000"} {
@@ -280,7 +283,7 @@ proc mc:cd:join {nick uhost hand chan} {
 
 bind mode - * mc:cd:mode
 proc mc:cd:mode {nick uhost hand chan mc vic} {
- global mc_cd
+ global mc_cd botnick
  if {((![string match *o $mc]) && (![string match *v $mc])) ||
      (![mc:cd:chanflagison $chan mc.clonedetector]) || 
      (![onchan $botnick $chan])} {return 0}
