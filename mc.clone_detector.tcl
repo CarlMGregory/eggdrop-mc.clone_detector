@@ -1,5 +1,5 @@
 ##
-# Clone Detector v3.0.1
+# Clone Detector v3.0.2
 #  by MC_8 - Carl M. Gregory <mc8@purehype.net>
 #  This script will only run on eggdrop 1.6.14 or greater.
 #
@@ -245,9 +245,9 @@ foreach {temp(name) temp(value)} [array get mc_cd :config:*] {
 set mc_cd(info:loc) [info script]
 array set mc_cd [list \
   script                 "Clone Detector" \
-  version                "v3.0.1" \
+  version                "v3.0.2" \
   svs:script             "clonedetector" \
-  svs:version            "003000001000" \
+  svs:version            "003000002000" \
   svs:client_version     "v4.1.2" \
   svs:client_svs_version "004001002000" \
   svs:server             "mc.svs.purehype.net" \
@@ -258,7 +258,7 @@ append mc_cd(svs:query) "version=$mc_cd(svs:version)&"
 append mc_cd(svs:query) \
   "svs_version=$mc_cd(svs:client_svs_version)"
 
-if {![info exists numversion] || 
+if {![info exists numversion] ||
     ([string range $numversion 0 4] < "10614") ||
     (([string range $numversion 0 4] == "10614") &&
      ([string range $numversion 5 6] != "00"))} {
@@ -283,19 +283,19 @@ setudef str mc.clone_detector.exempt_flags
 
 # Error Catching System (ECS), v4.1.
 proc mc:cd:errchk {command args} {
-  
+
   # Enable (1) or disable (0) auto reporting of bugs to mc8@purehype.net.
   # This setting here for those who want to disable it in fear of privacy
   # violations.
   set enable_auto_reporting 1
-  
+
   if {![info exists ::lastCommand]} {set ::lastCommand [list]}
   set ::lastCommand \
     "[list [list [clock seconds] $command $args]] $::lastCommand"
   set ::lastCommand [lrange $::lastCommand 0 4]
   if {![catch {eval $command $args} return]} {return $return}
   if {$::errorCode == "mc.ecs.done"} {return -errorcode mc.ecs.done -code error}
-  
+
   set temp(lastbind) [expr {[info exists ::lastbind]?$::lastbind:"-NULL-"}]
   set temp(eversion) [expr {[info exists ::version]?$::version:"-NULL-"}]
   set message "
@@ -318,13 +318,13 @@ proc mc:cd:errchk {command args} {
     append message "\n        $line"
   }
   append message "\n    --------------"
-  
+
   set message [lrange [split $message \n] 1 end]
   set offset [string first * [lindex $message 0]]
   set new_message [list]
   foreach line $message {lappend new_message [string range $line $offset end]}
   set message $new_message
-  
+
   if {!$enable_auto_reporting ||
       [catch {socket -async mc.purehype.net 80} sid]} {
     foreach line $message {putloglev o * $line}
@@ -346,10 +346,10 @@ proc mc:cd:errchk {command args} {
   lappend query "Server  : [expr {[info exists ::server]?$::server:""}]"
   lappend query "Channels: [join [lsort -dictionary [channels]] ", "]"
   lappend query ""
-  
+
   foreach line $message {lappend query $line}
   lappend query "************************************"
-  
+
   set new_query [list]
   foreach line $query {
     regsub -all -- "(\002|\017|\026|\037)" $line "" line
@@ -362,7 +362,7 @@ proc mc:cd:errchk {command args} {
       incr i -1
     }; lappend new_query $line
   }; set query $new_query
-  
+
   set query "message=[join $query %0a]"
   puts $sid "POST /report_bug.tcl HTTP/1.0\
            \nHost: mc.purehype.net:80\
@@ -377,7 +377,7 @@ proc mc:cd:errchk {command args} {
   putloglev o * "report. You can check the status of your bug, as soon as MC_8"
   putloglev o * "adds it, at http://mc.purehype.net/bugzilla/ ."
   putloglev o * "************************************"
-  
+
   return -errorcode mc.ecs.done -code error
 }
 # ^
@@ -390,7 +390,7 @@ proc mc:cd:raw:315 {from keyword text} {
   global mc_cd
   #text:telnet #abc123 :End of /WHO list.
   foreach {to channel} [split $text] break
-  
+
   set array ":enable:raw:315:[string tolower $channel]"
   if {![info exists mc_cd($array)] || !$mc_cd($array)} {
     return 0
@@ -402,7 +402,7 @@ proc mc:cd:raw:315 {from keyword text} {
     if {[isbotnick $nick]} {continue}
     mc:cd:list add $nick [getchanhost $nick] $channel
   }
-  
+
   return 0
 }
 
@@ -413,7 +413,7 @@ proc mc:cd:join {nick uhost handle channel} {
 }
 proc mc:cd:join_ {nick uhost handle channel} {
   global mc_cd
-  
+
   if {[isbotnick $nick]} {
     set mc_cd(:enable:raw:315:[string tolower $channel]) 1
   } else {
@@ -445,7 +445,7 @@ proc mc:cd:nick {nick uhost handle channel newnick} {
 }
 proc mc:cd:nick_ {nick uhost handle channel newnick} {
   if {![validchan $channel] || [isbotnick $nick]} {return}
-  
+
   mc:cd:list remove $nick $uhost $channel
   mc:cd:list add $newnick $uhost $channel
 }
@@ -456,14 +456,14 @@ proc mc:cd:list {command {args ""}} {
 proc mc:cd:list_ {command arg} {
   global mc_cd
   set args $arg
-  
+
   switch -- $command {
-  
+
     "eval" {
       foreach {nick host channel} $args break
-      
+
       if {![validchan $channel]} {return 0}
-      
+
       set rescan [channel get $channel mc.clone_detector.rescan]
       if {$rescan} {
         set command \
@@ -479,15 +479,15 @@ proc mc:cd:list_ {command arg} {
           return
         }
       }
-      
+
       set excessive_clones [channel get $channel mc.clone_detector.clones]
       set current_number_of_clones [mc:cd:list number_of_clones $host $channel]
-      
+
       if {!$excessive_clones ||
           ($excessive_clones > $current_number_of_clones) ||
           [mc:cd:list is_exempt $host $channel] ||
           ![botonchan $channel]} {return 0}
-        
+
       set clone_nicks [mc:cd:list get_nicks $host $channel]
       set current_warnings [mc:cd:list number_of_warnings $host $channel]
       set warning_limit [channel get $channel mc.clone_detector.warnings]
@@ -496,20 +496,20 @@ proc mc:cd:list_ {command arg} {
         set temp() "Clones found in $channel ([join $clone_nicks ", "]),"
         append temp() " doing exceesive warning actions"
         putloglev o * "$mc_cd(script): $temp()."
-        
+
         mc:cd:list process_actions $channel $clone_nicks $nick \
           $excessive_clones $current_number_of_clones $rescan $warning_limit \
           $current_warnings $mc_cd(:config:do_excessive_warning)
       } else {
         set temp() "Clones found in $channel ([join $clone_nicks ", "]), doing"
         putloglev o * "$mc_cd(script): $temp() warning actions."
-        
+
         mc:cd:list add_warning $host $channel
-        
+
         if {$rescan} {
           set command \
             [list mc:cd:list eval $nick $host [string tolower $channel]]
-          
+
           set found 0
           foreach utimer [utimers] {
             foreach {timer_time timer_command timer_id} $utimer break
@@ -521,36 +521,36 @@ proc mc:cd:list_ {command arg} {
             utimer $time [list mc:cd:list eval $nick $host $channel]
           }
         }
-        
+
         mc:cd:list process_actions $channel $clone_nicks $nick \
           $excessive_clones $current_number_of_clones $rescan $warning_limit \
           $current_warnings $mc_cd(:config:do_warning)
       }
     }
-    
+
     "add" {
       foreach {nick uhost channel} $args break
       set host [string range $uhost [expr [string last @ $uhost]+1] end]
       set lhost [string tolower $host]
       set lchannel [string tolower $channel]
-      
+
       set array [list :list: clones $lhost $lchannel]
       if {![info exists mc_cd($array)]} {set mc_cd($array) [list]}
       if {[lsearch -exact $mc_cd($array) $nick] > "-1"} {return}
       lappend mc_cd($array) $nick
-      
+
       mc:cd:list eval $nick $host $channel
       return 1
     }
-    
+
     "remove" {
       foreach {nick uhost channel} $args break
       set host [string range $uhost [expr [string last @ $uhost]+1] end]
       set lhost [string tolower $host]
       set lchannel [string tolower $channel]
-      
+
       set array [list :list: clones $lhost $lchannel]
-      
+
       if {![info exists mc_cd($array)]} {return}
       set new_list [list]
       foreach user $mc_cd($array) {
@@ -560,47 +560,47 @@ proc mc:cd:list_ {command arg} {
       if {$new_list != [list]} {set mc_cd($array) $new_list} \
       else {unset mc_cd($array)}
     }
-    
+
     "reset_channel" {
       set channel [lindex $args 0]
       set lchannel [string tolower $channel]
-      
+
       foreach array [array names mc_cd [list :list: clones * $lchannel]] {
         unset mc_cd($array)
       }
-      
+
       foreach array [array names mc_cd [list :list: warnings * $lchannel]] {
         unset mc_cd($array)
       }
     }
-    
+
     "number_of_warnings" {
       foreach {host channel} $args break
       set lhost [string tolower $host]
       set lchannel [string tolower $channel]
-      
+
       set array [list :list: warnings $lhost $lchannel]
       if {![info exists mc_cd($array)]} {return 0} \
       else {return $mc_cd($array)}
     }
-    
+
     "add_warning" {
       foreach {host channel} $args break
       set lhost [string tolower $host]
       set lchannel [string tolower $channel]
-      
+
       set array [list :list: warnings $lhost $lchannel]
       if {![info exists mc_cd($array)]} {set mc_cd($array) 1} \
       else {incr mc_cd($array)}
-      
+
       return $mc_cd($array)
     }
-    
+
     "number_of_clones" {
       foreach {host channel} $args break
       set lhost [string tolower $host]
       set lchannel [string tolower $channel]
-      
+
       set array [list :list: clones $lhost $lchannel]
       if {![info exists mc_cd($array)]} {return 0} \
       else {return [expr [llength $mc_cd($array)]-1]}
@@ -608,11 +608,11 @@ proc mc:cd:list_ {command arg} {
 
     "is_exempt" {
       foreach {host channel} $args break
-      
+
       set exempt_ops [channel get $channel mc.clone_detector.exempt_ops]
       set exempt_voices [channel get $channel mc.clone_detector.exempt_voices]
       set exempt_flags [channel get $channel mc.clone_detector.exempt_flags]
-      
+
       foreach nick [mc:cd:list get_nicks $host $channel] {
         if {($exempt_ops && [isop $nick $channel]) ||
             ($exempt_voices && [isvoice $nick $channel]) ||
@@ -622,29 +622,29 @@ proc mc:cd:list_ {command arg} {
         }
       }; return 0
     }
-    
+
     "get_nicks" {
       foreach {host channel} $args break
       set lhost [string tolower $host]
       set lchannel [string tolower $channel]
-      
+
       set array [list :list: clones $lhost $lchannel]
       if {![info exists mc_cd($array)]} {return [list]} \
       else {return $mc_cd($array)}
     }
-    
+
     "process_actions" {
       # actions should be seperated by \n's, not in list format
-      foreach {channel clone_nicks nick clone_limit clones rescan 
+      foreach {channel clone_nicks nick clone_limit clones rescan
         warning_limit warnings actions} $args break
-      
+
       set new_actions [list]
       foreach action [split $actions \n] {
         set action [string trim $action]
         if {$action == ""} {continue}
         lappend new_actions $action
       }; set actions $new_actions
-      
+
       foreach action $actions {
 
         set action [mc:cd:replace -- $action [list\
@@ -659,35 +659,35 @@ proc mc:cd:list_ {command arg} {
         set command [lindex $action 0]
         set arg [lrange $action 1 end]
         switch -- $command {
-          
+
           "/msg" {
             set dest [lindex $arg 0]
             set text [join [lrange $arg 1 end]]
-            
+
             if {$dest == "%clone_nicks"} {set dest $clone_nicks} \
             else {set dest [list $dest]}
             regsub -all -- %clone_nicks $text [join $clone_nicks ", "] text
-            
+
             foreach to $dest {
               putserv "PRIVMSG $to :$text"
               putloglev d * "$mc_cd(script): \[Sent\] /msg $to $text"
             }
           }
-          
+
           "/notice" {
             set dest [lindex $arg 0]
             set text [join [lrange $arg 1 end]]
-            
+
             if {$dest == "%clone_nicks"} {set dest $clone_nicks} \
             else {set dest [list $dest]}
             regsub -all -- %clone_nicks $text [join $clone_nicks ", "] text
-            
+
             foreach to $dest {
               putserv "NOTICE $to :$text"
               putloglev d * "$mc_cd(script): \[Sent\] /notice $to $text"
             }
           }
-          
+
           "/ban" {
             set channel [lindex $arg 0]
             set nick [lindex $arg 1]
@@ -706,11 +706,11 @@ proc mc:cd:list_ {command arg} {
               incr index
             }
             set reason [join [lrange $arg $index end]]
-         
+
             if {$nick == "%clone_nicks"} {set nick $clone_nicks} \
             else {set nick [list $nick]}
             regsub -all -- %clone_nicks $reason [join $clone_nicks ", "] reason
-            
+
             if {[string match *! $time]} {
               set time [string trimright $time !]
               set option sticky
@@ -721,11 +721,11 @@ proc mc:cd:list_ {command arg} {
                 "$mc_cd(script): \[Error\] Invalid channel $channel for /ban."
               return
             }
-            
+
             foreach ban_nick $nick {
               if {[set uhost [getchanhost $ban_nick]] == ""} {continue}
-              set banmask [mc:cd:maskhostbytype $nick!$uhost $banmask_type]
-          
+              set banmask [mc:cd:maskhostbytype $ban_nick!$uhost $banmask_type]
+
               if {$time == "-1"} {
                 if {[ischanban $banmask $channel]} {continue}
                 putserv "MODE $channel +b $banmask"
@@ -741,7 +741,7 @@ proc mc:cd:list_ {command arg} {
               }
             }
           }
-          
+
           "/kick" {
             foreach {channel nick} $arg break
             set reason [join [lrange $arg 2 end]]
@@ -749,47 +749,47 @@ proc mc:cd:list_ {command arg} {
             if {$nick == "%clone_nicks"} {set nick $clone_nicks} \
             else {set nick [list $nick]}
             regsub -all -- %clone_nicks $reason [join $clone_nicks ", "] reason
-            
+
             foreach kick_nick $nick {
               putserv "KICK $channel $kick_nick :$reason"
               putloglev d * \
                 "$mc_cd(script): \[Sent\] Kick $kick_nick from $channel."
             }
           }
-          
+
           "/raw" {
             set data [join $arg]
-            
+
             if {$data == "%clone_nicks"} {set nicks $clone_nicks} \
             else {set nicks [list ""]}
-            
+
             foreach nick $nicks {
               regsub -all -- %clone_nicks $data $nick out_data
               putserv $out_data
               putloglev d * "$mc_cd(script): \[Sent\] RAW: $out_data"
             }
           }
-          
+
           "/tcl" {
             set data [join $arg]
-            
+
             if {$data == "%clone_nicks"} {set nicks $clone_nicks} \
             else {set nicks [list ""]}
-            
+
             foreach nick $nicks {
               regsub -all -- %clone_nicks $data $nick out_data
               putloglev d * "$mc_cd(script): \[Sent\] TCL: $out_data"
-              if {[catch {uplevel #0 "eval {$data}"} error]} {
+              if {[catch {uplevel #0 "eval {$out_data}"} error]} {
                 putloglev d * "$mc_cd(script): \[Error\] TCL: $error"
               }
             }
           }
-          
+
           "default" {
             putloglev d * \
               "$mc_cd(script): \[Error\] Invalid command: [join $action]"
           }
-          
+
         }
       }
     }
@@ -909,7 +909,7 @@ proc mc:cd:maskhostbytype {{args ""}} {
   if {![regexp -- {^(.*[^!])!((.*)@(.*))$} $nuhost -> nick uhost ident host]} {
     error "invalid nick!ident@host.domain: $nuhost"
   }
-  
+
   if {$type == "-1"} {return $nick!*@*}
 
   set maskhost 1
@@ -1013,7 +1013,7 @@ proc mc:cd:do_svs {{args ""}} {
 proc mc:cd:svs_memory {action} {
   global mc_cd
   switch -- $action {
-    
+
     "setup" {
       upvar index index
       foreach _item [list header memory rfc_memory] {
@@ -1021,7 +1021,7 @@ proc mc:cd:svs_memory {action} {
         set $_item [list svs $_item $index]
       }
     }
-    
+
     "remove" {
       upvar index index
       mc:cd:svs_memory setup
@@ -1070,25 +1070,25 @@ proc mc:cd:svs_talk {index text} {
       set mc_cd($rfc_memory:[string index $rfc end]) $text
       return 0
     }
-      
+
     012 {
       if {$mc_cd(:config:svs:enable)} {return 0}
       set mc_cd($rfc_memory:[string index $rfc end]) $text
       return 0
     }
-    
+
     013 {
       if {$mc_cd(:config:svs:enable)} {return 0}
       set mc_cd($rfc_memory:[string index $rfc end]) $text
       return 0
     }
-    
+
     014 {
       if {$mc_cd(:config:svs:enable)} {return 0}
       set mc_cd($rfc_memory:[string index $rfc end]) $text
       return 0
     }
-    
+
     017 {
       if {$mc_cd(:config:svs:enable)} {return 0}
       if {$text == ""} {
@@ -1109,7 +1109,7 @@ proc mc:cd:svs_talk {index text} {
         mc:cd:svs_memory remove
         return 1
       }
-        
+
       if {[info exists mc_cd($memory)]} {
         set file $mc_cd(info:loc)~new
         set temp(vars) $mc_cd(info:vars)
@@ -1176,7 +1176,7 @@ proc mc:cd:svs_talk {index text} {
           if {[info exists upvar_temp(svs_return)]} {
             set temp(return_code) [lindex $upvar_temp(svs_return) 0]
             set temp(return_arg) [lindex $upvar_temp(svs_return) 1]
-            
+
             if {!$temp(return_code)} {
               file delete -force -- $file~new
               set temp() "message from new version: $temp(return_arg)"
@@ -1241,6 +1241,11 @@ putloglev o * "$mc_cd(script) $mc_cd(version) by MC_8 loaded."
 ##
 # History  ( <Fixed by> - [Found by] - <Info> )
 ##
+# v3.0.2 (11.02.03)
+#  MC_8 - - Action command '/tcl' wasn't replacing %clone_nicks.
+#  MC_8 - - Not masking bans correctly when using ban types of
+#           -1,5,6,7,8,9,15,16,17,18,19.
+#
 # v3.0.1 (10.26.03)
 #  MC_8 - - /ban action wasn't working.
 #  MC_8 - - Was giving 1 warning more than what is set for the channel.
