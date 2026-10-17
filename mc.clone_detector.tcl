@@ -1,5 +1,5 @@
 ##
-# Clone Detector v3.0
+# Clone Detector v3.0.1
 #  by MC_8 - Carl M. Gregory <mc8@purehype.net>
 #  This script will only run on eggdrop 1.6.14 or greater.
 #
@@ -245,9 +245,9 @@ foreach {temp(name) temp(value)} [array get mc_cd :config:*] {
 set mc_cd(info:loc) [info script]
 array set mc_cd [list \
   script                 "Clone Detector" \
-  version                "v3.0" \
+  version                "v3.0.1" \
   svs:script             "clonedetector" \
-  svs:version            "003000000000" \
+  svs:version            "003000001000" \
   svs:client_version     "v4.1.2" \
   svs:client_svs_version "004001002000" \
   svs:server             "mc.svs.purehype.net" \
@@ -491,8 +491,8 @@ proc mc:cd:list_ {command arg} {
       set clone_nicks [mc:cd:list get_nicks $host $channel]
       set current_warnings [mc:cd:list number_of_warnings $host $channel]
       set warning_limit [channel get $channel mc.clone_detector.warnings]
-      
-      if {($current_warnings > $warning_limit) || !$warning_limit} {
+
+      if {($current_warnings >= $warning_limit) || !$warning_limit} {
         set temp() "Clones found in $channel ([join $clone_nicks ", "]),"
         append temp() " doing exceesive warning actions"
         putloglev o * "$mc_cd(script): $temp()."
@@ -646,7 +646,7 @@ proc mc:cd:list_ {command arg} {
       }; set actions $new_actions
       
       foreach action $actions {
-        
+
         set action [mc:cd:replace -- $action [list\
           %channel       $channel       \
           %nick          $nick          \
@@ -692,12 +692,21 @@ proc mc:cd:list_ {command arg} {
             set channel [lindex $arg 0]
             set nick [lindex $arg 1]
             set time [lindex $arg [set index 2]]
-            if {![string match %* $time]} {set time -1} else {incr index}
+            if {![regexp -- {^%[0-9]*$} $time]} {
+              set time -1
+            } else {
+              set time [string range $time 1 end]
+              incr index
+            }
             set banmask_type [lindex $arg $index]
-            if {![string match {\**} $banmask_type]} {set banmask_type 3} \
-            else {incr index}
+            if {![regexp -- {^\*(1?[0-9]|-1)$} $banmask_type]} {
+              set banmask_type 3
+            } else {
+              set banmask_type [string range $banmask_type 1 end]
+              incr index
+            }
             set reason [join [lrange $arg $index end]]
-            
+         
             if {$nick == "%clone_nicks"} {set nick $clone_nicks} \
             else {set nick [list $nick]}
             regsub -all -- %clone_nicks $reason [join $clone_nicks ", "] reason
@@ -706,7 +715,7 @@ proc mc:cd:list_ {command arg} {
               set time [string trimright $time !]
               set option sticky
             } else {set option none}
-            
+
             if {($time != "-1") && ![validchan $channel]} {
               putloglev d * \
                 "$mc_cd(script): \[Error\] Invalid channel $channel for /ban."
@@ -714,9 +723,9 @@ proc mc:cd:list_ {command arg} {
             }
             
             foreach ban_nick $nick {
-              if {[set uhost [getchanhost $nick]] == ""} {continue}
+              if {[set uhost [getchanhost $ban_nick]] == ""} {continue}
               set banmask [mc:cd:maskhostbytype $nick!$uhost $banmask_type]
-            
+          
               if {$time == "-1"} {
                 if {[ischanban $banmask $channel]} {continue}
                 putserv "MODE $channel +b $banmask"
@@ -1232,6 +1241,10 @@ putloglev o * "$mc_cd(script) $mc_cd(version) by MC_8 loaded."
 ##
 # History  ( <Fixed by> - [Found by] - <Info> )
 ##
+# v3.0.1 (10.26.03)
+#  MC_8 - - /ban action wasn't working.
+#  MC_8 - - Was giving 1 warning more than what is set for the channel.
+#
 # v3.0 (10.25.03)
 #  MC_8 - everyone   - Upgraded 'masthostbytype'.  Now has the ability to supply
 #                      type -1 which is nick!*@* masking.  v2.0 -> v2.2
